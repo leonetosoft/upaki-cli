@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Cliente Nodejs para comunicação com o Upaki",
   "main": "lib/index.js",
-  "repository": "https://www.github.com/elboman/typescript-lib-example",
+  "repository": "https://github.com/leonetosoft/upaki-cli",
   "author": "Leonardo Neto",
   "license": "MIT",
   "scripts": {
