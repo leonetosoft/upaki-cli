@@ -2,11 +2,12 @@
   "name": "upaki-cli",
   "version": "1.0.0",
   "description": "Cliente Nodejs para comunicação com o Upaki",
-  "main": "index.js",
+  "main": "lib/index.js",
   "repository": "https://www.github.com/elboman/typescript-lib-example",
   "author": "Leonardo Neto",
   "license": "MIT",
   "scripts": {
+    "pretest": "npm run clean && tsc",
     "clean": "shx rm -rf _bundles lib lib-esm",
     "lib": "npm run clean && tsc",
     "lib2": "npm run clean && tsc && tsc -m es6 --outDir lib-esm",
@@ -19,8 +20,7 @@
     "moment": "^2.20.1",
     "reflect-metadata": "^0.1.12",
     "request": "^2.83.0",
-    "shx": "^0.2.2",
-    "typescript": "^2.1.6"
+    "shx": "^0.2.2"
   },
   "devDependencies": {
     "webpack": "^2.2.1",
