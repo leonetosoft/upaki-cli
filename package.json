@@ -1,17 +1,19 @@
 {
   "name": "upaki-cli",
-  "version": "1.0.0",
+  "version": "1.3.1",
   "description": "Cliente Nodejs para comunicação com o Upaki",
   "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "repository": "https://github.com/leonetosoft/upaki-cli",
   "author": "Leonardo Neto",
   "license": "MIT",
   "scripts": {
+    "index": "cti ./src",
     "pretest": "npm run clean && tsc",
     "clean": "shx rm -rf _bundles lib lib-esm",
-    "lib": "npm run clean && tsc",
+    "build": "npm run clean && tsc",
     "lib2": "npm run clean && tsc && tsc -m es6 --outDir lib-esm",
-    "build": "npm run clean && tsc && tsc -m es6 --outDir lib-esm && webpack --watch --config webpack.config.js --progress --colors"
+    "build2": "npm run clean && tsc && tsc -m es6 --outDir lib-esm && webpack --watch --config webpack.config.js --progress --colors"
   },
   "dependencies": {
     "awesome-typescript-loader": "^3.0.4-rc.2",
@@ -23,14 +25,15 @@
     "shx": "^0.2.2"
   },
   "devDependencies": {
-    "webpack": "^2.2.1",
     "@types/body-parser": "^1.16.8",
     "@types/event-emitter": "^0.3.2",
     "@types/express": "^4.0.39",
     "@types/jsonwebtoken": "^7.2.5",
-    "@types/request": "^2.0.9",
     "@types/node": "^8.0.49",
+    "@types/request": "^2.0.9",
+    "create-ts-index": "^1.0.14",
+    "ts-node": "3.3.0",
     "typescript": "2.5.2",
-    "ts-node": "3.3.0"
+    "webpack": "^2.2.1"
   }
 }
