@@ -6,3 +6,8 @@ export interface MakeUpload {
     bucket: string;
     region: string;
 }
+
+export interface GeSignedUrl {
+    filename: string;
+    url: string;
+}

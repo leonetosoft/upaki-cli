@@ -1,6 +1,6 @@
 import { S3Stream, S3StreamSessionDetails, S3StreamEvents } from './S3Stream';
 import { UpakiCredentials } from './../config/env';
-import { MakeUpload } from './Interfaces';
+import { MakeUpload, GeSignedUrl } from './Interfaces';
 import { Util } from "../util/Util";
 import * as fs from 'fs';
 // import * as s3Stream from '../lib/s3-upload-stream';
@@ -57,17 +57,26 @@ export class Upaki {
         }
     }
 
-
-    private async MakeUpload(localPath: string, cloudPath: string, meta = {}, lastModify = undefined): Promise<MakeUpload> {
-        if (!fs.existsSync(localPath)) {
-            throw new Error('Arquivo não encontrado');
+    private async MakeUrlSigned(fileId: string, forceDownload: boolean): Promise<GeSignedUrl> {
+        let body = {
+            file_id: fileId,
+            forceDownload: forceDownload
         }
+
+        let makePost = await RestRequest.POST<GeSignedUrl>('user/downloadFile', body);
+        return makePost.data;
+    }
+
+    private async MakeUpload(size: number, cloudPath: string, meta = {}, lastModify = undefined): Promise<MakeUpload> {
+        /*if (!fs.existsSync(localPath)) {
+            throw new Error('Arquivo não encontrado');
+        }*/
 
         let body = {
             path: cloudPath,
             meta: meta,
             lastModify: lastModify,
-            size: Util.getFileSize(localPath)
+            size: /*Util.getFileSize(localPath)*/ size
         }
 
 
@@ -109,6 +118,17 @@ export class Upaki {
 
     }
 
+    GetSignedUrl(fileId: string, forceDownload: boolean = true) {
+        return new Promise((resolve, reject) => {
+            this.MakeUrlSigned(fileId, forceDownload).then(rs => {
+                resolve(rs.url);
+            }).catch(err => {
+                reject(err);
+            })
+        })
+        
+    }
+
     /**
      * Envia um arquivo simples
      * 
@@ -116,8 +136,10 @@ export class Upaki {
      * @param cloudPath 
      * @param meta 
      */
-    async Upload(localPath: string, cloudPath: string, meta = {}, lastModify = undefined): Promise<UploadEvents> {
-        let credentials = await this.MakeUpload(localPath, cloudPath, meta, lastModify);
+    async Upload(localPath: string | Buffer, cloudPath: string, meta = {}, lastModify = undefined): Promise<UploadEvents> {
+        let size = !Buffer.isBuffer(localPath) ? Util.getFileSize(localPath) : localPath.byteLength;
+        let bytesSend = !Buffer.isBuffer(localPath) ? this.ReadFile(localPath) : localPath;
+        let credentials = await this.MakeUpload(size, cloudPath, meta, lastModify);
 
         let s3 = new AWS.S3({
             accessKeyId: credentials.credentials.AccessKeyId,
@@ -125,7 +147,7 @@ export class Upaki {
             sessionToken: credentials.credentials.SessionToken,
         });
 
-        let body = this.ReadFile(localPath);
+        let body = bytesSend;
         let params = {
             Body: body,
             Bucket: credentials.bucket,
@@ -143,10 +165,10 @@ export class Upaki {
             if (err) {
                 emitter.emit('error', err);
             } else {
-                if (!fs.existsSync(localPath)) {
+                if (!Buffer.isBuffer(localPath) && !fs.existsSync(localPath)) {
                     emitter.emit('error', new Error('File removed !!!'));
                 }
-                else if (Util.Etag(fs.readFileSync(localPath)) === data.ETag) {
+                else if (Util.Etag(bytesSend) === data.ETag) {
                     emitter.emit('error', new Error('Checksum error, arquivo corrompido no envio'));
                 } else {
                     this.CompleteUpload(credentials.file_id);
@@ -197,30 +219,6 @@ export class Upaki {
         // Optional configuration
         upStream.setMaxPartSize(config.maxPartSize); // 20 MB
         upStream.setConcurrentParts(config.concurrentParts);
-
-        /*upload.on('completeUpload', (details) => {
-            try {
-                this.CompleteUpload(credentials.file_id);
-                upload.emit('uploaded', { Etag: details.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
-            } catch (error) {
-
-            }
-        });*/
-
-        /*upload.on('error', async (err) => {
-            try {
-                if (err.code === 'EXPIRED_TOKEN') {
-                    let newCredentials = await this.MakeUpload(localPath, cloudPath, meta);
-                    upStream.client = new AWS.S3({
-                        accessKeyId: newCredentials.credentials.AccessKeyId,
-                        secretAccessKey: newCredentials.credentials.SecretAccessKey,
-                        sessionToken: newCredentials.credentials.SessionToken,
-                    });
-                }
-            } catch (error) {
-                upStream.abortUpload('Failed to upload a part to S3: ' + JSON.stringify(error));
-            }
-        });*/
 
         upload.on('credentials', (config: any) => {
             try {
@@ -275,7 +273,7 @@ export class Upaki {
      * @param meta 
      */
     async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }, meta = {}, lastModify = undefined): Promise<S3StreamEvents> {
-        let credentials = await this.MakeUpload(localPath, cloudPath, meta, lastModify);
+        let credentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta, lastModify);
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
@@ -325,7 +323,7 @@ export class Upaki {
         upload.on('error', async (err) => {
             try {
                 if (err.code === 'EXPIRED_TOKEN') {
-                    let newCredentials = await this.MakeUpload(localPath, cloudPath, meta);
+                    let newCredentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta);
                     /*upStream.client = new AWS.S3({
                         accessKeyId: newCredentials.credentials.AccessKeyId,
                         secretAccessKey: newCredentials.credentials.SecretAccessKey,
