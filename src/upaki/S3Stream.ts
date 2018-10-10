@@ -98,6 +98,10 @@ export class S3Stream {
         this.uploadWithSession = sessionDetails.UploadId ? true : false;
         this.client = client;
 
+        if (sessionDetails.Parts) {
+            this.removeNull();
+        }
+
         // Create the writable stream interface.
         this.ws = new stream.Writable({
             highWaterMark: 4194304 // 4 MB
@@ -110,6 +114,12 @@ export class S3Stream {
 
     closeStream() {
         this.ws = undefined;
+    }
+
+    removeNull() {
+        if (this.partIds) {
+            this.partIds = this.partIds.filter(el => el !== null);
+        }
     }
 
     addRequestUpload(request: AWS.Request<AWS.S3.Types.UploadPartOutput, AWS.AWSError>, Etag: string) {
@@ -155,7 +165,7 @@ export class S3Stream {
         this.aborted = true;
         this.closeRequests();
         // this.closeStream();
-       this.externalEvent.emit('aborted');
+        this.externalEvent.emit('aborted');
         // this.externalEvent.emit('dbug', `Aborting stream`);
         /*try {
             this.ws.destroy(new Error('Operation aborted!'));
@@ -240,7 +250,7 @@ export class S3Stream {
     completeUpload() {
         // There is a possibility that the incoming stream was empty, therefore the MPU never started
         // and cannot be finalized.
-        if(this.aborted){
+        if (this.aborted) {
             return;
         }
         if (this.multipartUploadID) {
@@ -304,7 +314,7 @@ export class S3Stream {
     }
 
     createMultipartUpload() {
-        if(this.aborted){
+        if (this.aborted) {
             return;
         }
         this.client.createMultipartUpload(this.destinationDetails, (err, data) => {
@@ -509,6 +519,8 @@ export class S3Stream {
 
     private flushPart(callback, partBuffer = this.preparePartBuffer(), retry = false) {
         //var partBuffer = this.preparePartBuffer();
+        this.removeNull();
+
         if (this.aborted) {
             this.externalEvent.emit('dbug', `Request flush part aborted`);
             return;
@@ -592,6 +604,8 @@ export class S3Stream {
                     ETag: result.ETag.replace(/"/g, ''),
                     PartNumber: localPartNumber
                 };
+
+                this.removeNull();
 
                 callback({
                     ETag: result.ETag.replace(/"/g, ''),
