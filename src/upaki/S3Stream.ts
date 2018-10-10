@@ -98,10 +98,6 @@ export class S3Stream {
         this.uploadWithSession = sessionDetails.UploadId ? true : false;
         this.client = client;
 
-        if (sessionDetails.Parts) {
-            this.removeNull();
-        }
-
         // Create the writable stream interface.
         this.ws = new stream.Writable({
             highWaterMark: 4194304 // 4 MB
@@ -114,12 +110,6 @@ export class S3Stream {
 
     closeStream() {
         this.ws = undefined;
-    }
-
-    removeNull() {
-        if (this.partIds) {
-            this.partIds = this.partIds.filter(el => el !== null);
-        }
     }
 
     addRequestUpload(request: AWS.Request<AWS.S3.Types.UploadPartOutput, AWS.AWSError>, Etag: string) {
@@ -259,7 +249,7 @@ export class S3Stream {
                 Key: this.destinationDetails.Key,
                 UploadId: this.multipartUploadID,
                 MultipartUpload: {
-                    Parts: this.partIds
+                    Parts: this.partIds.filter(el => el !== null)
                 }
             }, (err, result) => {
                 if (err) {
@@ -486,7 +476,7 @@ export class S3Stream {
     };
 
     private EtagCheck(Etag) {
-        return this.partIds.findIndex(el => el.ETag === Etag) !== -1;
+        return this.partIds.findIndex(el => el !== null && el.ETag === Etag) !== -1;
     }
 
     // Take a list of received buffers and return a combined buffer that is exactly
@@ -519,7 +509,6 @@ export class S3Stream {
 
     private flushPart(callback, partBuffer = this.preparePartBuffer(), retry = false) {
         //var partBuffer = this.preparePartBuffer();
-        this.removeNull();
 
         if (this.aborted) {
             this.externalEvent.emit('dbug', `Request flush part aborted`);
@@ -604,8 +593,6 @@ export class S3Stream {
                     ETag: result.ETag.replace(/"/g, ''),
                     PartNumber: localPartNumber
                 };
-
-                this.removeNull();
 
                 callback({
                     ETag: result.ETag.replace(/"/g, ''),
