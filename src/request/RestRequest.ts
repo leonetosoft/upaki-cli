@@ -55,6 +55,17 @@ export namespace RestRequest {
         return await requestAwaiter<T>(options);
     }
 
+    export async function POST_PUBLIC<T>(route: string, body: any, headers = {}) {
+        const options = {
+            method: 'POST',
+            url: Environment.config.url + '/' + route,
+            headers: headers,
+            body: body,
+            json: true
+        };
+        return await requestAwaiter<T>(options);
+    }
+
     export async function PUT<T>(route: string, body: any, headers: {}) {
         headers = getDefaultHeaders(headers);
         const options = {

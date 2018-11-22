@@ -1,6 +1,6 @@
 import { S3Stream, S3StreamSessionDetails, S3StreamEvents } from './S3Stream';
 import { UpakiCredentials } from './../config/env';
-import { MakeUpload, GeSignedUrl } from './Interfaces';
+// import { MakeUpload, GeSignedUrl, DeviceAuthResponse, UpakiArchiveList, UpakiPathInfo, UPAKI_DEVICE_TYPE, UpakiObject } from './Interfaces';
 import { Util } from "../util/Util";
 import * as fs from 'fs';
 // import * as s3Stream from '../lib/s3-upload-stream';
@@ -15,10 +15,58 @@ export interface UpakiUploadProgress {
     loaded: number, total: number
 }
 
+export interface MakeUpload {
+    file_id: string;
+    folder_id: string;
+    credentials: { AccessKeyId: string, SecretAccessKey: string, SessionToken: string, Expiration: string };
+    key: string;
+    bucket: string;
+    region: string;
+}
+
+export interface GeSignedUrl {
+    filename: string;
+    url: string;
+}
+
+export interface DeviceAuthResponse {
+    deviceId: string;
+    credentialKey: string;
+    secretToken: string;
+}
+
+export enum UPAKI_DEVICE_TYPE {
+    BROWSER = 1,
+    DESKTOP = 2,
+    MOBILE = 3
+}
+
 export interface UpakiObject {
     file_id: string;
     folder_id: string;
     Etag: string;
+}
+
+export interface UpakiIArchiveViewer {
+    id: string;
+    isFolder: number;
+    name: string;
+    is_shared: number;
+    created_at: string;
+    status: number;
+    extension: string;
+    size: number;
+}
+
+export interface UpakiArchiveList {
+    list: UpakiIArchiveViewer[];
+    next: string;
+}
+
+export interface UpakiPathInfo {
+    index: string;
+    name: string;
+    id: string;
 }
 
 export interface UploadEvents {
@@ -96,6 +144,39 @@ export class Upaki {
         return makePost;
     }
 
+    public async getFiles(folderId: string, next?: string) {
+        let body = {
+            folder_id: folderId,
+            isroot: folderId ? false : true,
+            next: next,
+            type: 1
+        };
+
+        return await RestRequest.POST<UpakiArchiveList>('user/getArchiveList', body);
+    }
+
+    public async getPath(folderId: string, next: string) {
+        let body = {
+            folder_id: folderId,
+            type: 1
+        };
+
+        return await RestRequest.POST<UpakiPathInfo[]>('user/getPath', body);
+    }
+
+    public async authDevice(login, password, name, type: UPAKI_DEVICE_TYPE, so: string, deviceId = undefined) {
+        let body = {
+            id: deviceId,
+            login: login,
+            password: password,
+            name: name,
+            type: type,
+            so: so
+        };
+
+        return await RestRequest.POST_PUBLIC<DeviceAuthResponse>('public/authDevice', body);
+    }
+
     private async CompleteUpload(file_id): Promise<any> {
         let body = {
             file_id: file_id
@@ -126,7 +207,7 @@ export class Upaki {
                 reject(err);
             })
         })
-        
+
     }
 
     /**
@@ -199,6 +280,7 @@ export class Upaki {
      */
     MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }): S3StreamEvents {
         var read = fs.createReadStream(localPath);
+        var etag = Util.Etag(fs.readFileSync(localPath));
         //var compress = zlib.createGzip();
 
         let upStream = new S3Stream(new AWS.S3({
@@ -211,9 +293,12 @@ export class Upaki {
         let upload = upStream.Upload({
             Bucket: credentials.bucket,
             Key: credentials.key,
-            ServerSideEncryption: 'AES256'/*,
+            ServerSideEncryption: 'AES256',/*,
             ContentType: "application/octet-stream",
             ContentEncoding: 'gzip',*/
+            Metadata: {
+                myMD5: etag
+            }
         });
 
         // Optional configuration
@@ -277,7 +362,7 @@ export class Upaki {
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
-
+        var etag = Util.Etag(fs.readFileSync(localPath));
         /*let upStream = s3Stream(new AWS.S3({
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
@@ -305,6 +390,9 @@ export class Upaki {
             ServerSideEncryption: 'AES256',
             ContentType: "application/octet-stream",
             ContentEncoding: 'gzip',
+            Metadata: {
+                myMD5: etag
+            }
         });
 
         // Optional configuration
