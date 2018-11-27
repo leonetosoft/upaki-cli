@@ -1,4 +1,4 @@
-import { S3Stream, S3StreamSessionDetails, S3StreamEvents } from './S3Stream';
+import { S3Stream, S3StreamEvents } from './S3Stream';
 import { UpakiCredentials } from './../config/env';
 // import { MakeUpload, GeSignedUrl, DeviceAuthResponse, UpakiArchiveList, UpakiPathInfo, UPAKI_DEVICE_TYPE, UpakiObject } from './Interfaces';
 import { Util } from "../util/Util";
@@ -10,64 +10,7 @@ import * as zlib from 'zlib';
 import * as events from 'events';
 import { Environment } from '../config/env';
 import { development } from '../config/development';
-
-export interface UpakiUploadProgress {
-    loaded: number, total: number
-}
-
-export interface MakeUpload {
-    file_id: string;
-    folder_id: string;
-    credentials: { AccessKeyId: string, SecretAccessKey: string, SessionToken: string, Expiration: string };
-    key: string;
-    bucket: string;
-    region: string;
-}
-
-export interface GeSignedUrl {
-    filename: string;
-    url: string;
-}
-
-export interface DeviceAuthResponse {
-    deviceId: string;
-    credentialKey: string;
-    secretToken: string;
-}
-
-export enum UPAKI_DEVICE_TYPE {
-    BROWSER = 1,
-    DESKTOP = 2,
-    MOBILE = 3
-}
-
-export interface UpakiObject {
-    file_id: string;
-    folder_id: string;
-    Etag: string;
-}
-
-export interface UpakiIArchiveViewer {
-    id: string;
-    isFolder: number;
-    name: string;
-    is_shared: number;
-    created_at: string;
-    status: number;
-    extension: string;
-    size: number;
-}
-
-export interface UpakiArchiveList {
-    list: UpakiIArchiveViewer[];
-    next: string;
-}
-
-export interface UpakiPathInfo {
-    index: string;
-    name: string;
-    id: string;
-}
+import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails } from './interfaceApi';
 
 export interface UploadEvents {
     emit(event: 'error', error: string | Error | AWS.AWSError): boolean;
@@ -155,13 +98,18 @@ export class Upaki {
         return await RestRequest.POST<UpakiArchiveList>('user/getArchiveList', body);
     }
 
-    public async getPath(folderId: string, next: string) {
+    public async getPath(folderId: string) {
         let body = {
             folder_id: folderId,
             type: 1
         };
 
         return await RestRequest.POST<UpakiPathInfo[]>('user/getPath', body);
+    }
+
+    public async getUserProfile() {
+        let body = {};
+        return await RestRequest.GET<UpakiUserProfile>('user/getUserProfile', body);
     }
 
     public async authDevice(login, password, name, type: UPAKI_DEVICE_TYPE, so: string, deviceId = undefined) {

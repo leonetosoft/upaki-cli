@@ -36,7 +36,7 @@ export namespace RestRequest {
         headers = getDefaultHeaders(headers);
         const options = {
             method: 'GET',
-            url: Environment.config.url + route,
+            url: Environment.config.url + '/' + route,
             headers: headers,
             json: true
         };

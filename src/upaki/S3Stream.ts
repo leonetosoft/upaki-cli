@@ -2,15 +2,7 @@ import * as AWS from 'aws-sdk';
 import * as events from 'events';
 import * as stream from 'stream';
 import { Util } from '../util/Util';
-import { UpakiObject } from './Upaki';
-export interface Parts {
-    ETag: string, PartNumber: number;
-}
-export interface S3StreamSessionDetails {
-    UploadId?: string;
-    Parts?: Parts[];
-    DataTransfered?: number;
-}
+import { Parts, S3StreamSessionDetails, UpakiObject } from './interfaceApi';
 
 export interface S3StreamEvents {
     on(event: 'completeUpload', listener: (result: AWS.S3.CompleteMultipartUploadOutput) => void): this;
