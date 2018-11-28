@@ -1,6 +1,6 @@
 {
   "name": "upaki-cli",
-  "version": "1.4.10",
+  "version": "1.4.11",
   "description": "Cliente Nodejs para comunicação com o Upaki",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

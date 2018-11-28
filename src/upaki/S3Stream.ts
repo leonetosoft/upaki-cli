@@ -245,8 +245,10 @@ export class S3Stream {
                 }
             }, (err, result) => {
                 if (err) {
-
-                    if (err.code === 'TimeoutError' || err.code === 'RequestTimeout') {
+                    if (err.code === 'NoSuchUpload') {
+                        this.externalEvent.emit('error', { code: 'UPLOAD_ID_NO_FOUND', err: new Error('Upload id not found or completed.') });
+                    }
+                    else if (err.code === 'TimeoutError' || err.code === 'RequestTimeout') {
                         this.externalEvent.emit('error', { code: 'TIMEOUT_ERROR', err: new Error('Timeout error.') });
                     } else if (err.code === 'NetworkingError') {
                         this.externalEvent.emit('error', { code: 'NETWORKING_ERROR', err: new Error('Networking error.') });
@@ -265,8 +267,8 @@ export class S3Stream {
                             this.externalEvent.emit('error', { code: 'RETRY_ERROR', err: error });
                         }
                     });
-
-                    this.abortUpload('Failed to complete the multipart upload on S3: ' + JSON.stringify(err));
+                    // failed to complete ... if is token expired ??? and others
+                    // this.abortUpload('Failed to complete the multipart upload on S3: ' + JSON.stringify(err));
                 }
                 else {
                     // Emit both events for backwards compatibility, and to follow the spec.
