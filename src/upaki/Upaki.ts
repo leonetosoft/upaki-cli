@@ -174,6 +174,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            httpOptions: { timeout: 0 }
         });
 
         let body = bytesSend;
@@ -236,6 +237,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            httpOptions: { timeout: 0 }
         }), session);
 
         let upload = upStream.Upload({
@@ -305,7 +307,7 @@ export class Upaki {
      * @param config 
      * @param meta 
      */
-    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }, meta = {}, lastModify = undefined): Promise<S3StreamEvents> {
+    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
         let credentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta, lastModify);
 
         var read = fs.createReadStream(localPath);
@@ -330,9 +332,25 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            httpOptions: { timeout: 0 }
         }), session);
 
-        let upload = upStream.Upload({
+        let opts: AWS.S3.Types.CreateMultipartUploadRequest;
+        opts = {
+            Bucket: credentials.bucket,
+            Key: credentials.key,
+            ServerSideEncryption: 'AES256',
+            Metadata: {
+                myMD5: etag
+            }
+        }
+
+        if (compressContent) {
+            opts.ContentType = 'application/octet-stream';
+            opts.ContentEncoding = 'gzip';
+        }
+
+        let upload = upStream.Upload(/*{
             Bucket: credentials.bucket,
             Key: credentials.key,
             ServerSideEncryption: 'AES256',
@@ -341,7 +359,7 @@ export class Upaki {
             Metadata: {
                 myMD5: etag
             }
-        });
+        }*/opts);
 
         // Optional configuration
         upStream.setMaxPartSize(config.maxPartSize); // 20 MB
@@ -403,8 +421,11 @@ export class Upaki {
                 upStream.resume();
             }
         });
-
-        read.pipe(compress).pipe(upStream.getStream());
+        if (compressContent) {
+            read.pipe(compress).pipe(upStream.getStream());
+        } else {
+            read.pipe(upStream.getStream());
+        }
         return upload;
 
     }
