@@ -508,7 +508,7 @@ export class S3Stream {
             this.externalEvent.emit('dbug', `Request flush part aborted`);
             return;
         }
-        var etagObject = Util.Etag(partBuffer);
+        var etagObject = Util.Etag_DEPRECATED(partBuffer); // pode se usar o Etag_deprecated por se tratar de um bloco pequeno que sera calculado
         if (!retry) {
             this.externalEvent.emit('dbug', `Etag part ${etagObject}`);
             if (this.uploadWithSession && this.EtagCheck(etagObject)) {

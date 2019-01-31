@@ -198,7 +198,7 @@ export class Upaki {
                 if (!Buffer.isBuffer(localPath) && !fs.existsSync(localPath)) {
                     emitter.emit('error', new Error('File removed !!!'));
                 }
-                else if (Util.Etag(bytesSend) === data.ETag) {
+                else if ( Util.Etag_DEPRECATED(bytesSend) === data.ETag) {
                     emitter.emit('error', new Error('Checksum error, arquivo corrompido no envio'));
                 } else {
                     this.CompleteUpload(credentials.file_id);
@@ -227,9 +227,9 @@ export class Upaki {
      * @param session 
      * @param config 
      */
-    MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }): S3StreamEvents {
+     async MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }): Promise<S3StreamEvents> {
         var read = fs.createReadStream(localPath);
-        var etag = Util.Etag(fs.readFileSync(localPath));
+        var etag = await Util.Etagv2(localPath);
         //var compress = zlib.createGzip();
 
         let upStream = new S3Stream(new AWS.S3({
@@ -312,7 +312,7 @@ export class Upaki {
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
-        var etag = Util.Etag(fs.readFileSync(localPath));
+        var etag = await Util.Etagv2(localPath);
         /*let upStream = s3Stream(new AWS.S3({
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,

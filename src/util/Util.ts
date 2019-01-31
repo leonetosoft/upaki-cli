@@ -30,9 +30,31 @@ export namespace Util {
         return stats.size;
     }
 
-    export function Etag(buffer) {
+    export function Etag_DEPRECATED(buffer) {
         var hash = crypto.createHash('md5');
         hash.update(buffer);
         return hash.digest('hex');
     };
+
+
+    export function Etagv2(filename, algorithm = 'md5'): Promise<string> {
+        return new Promise((resolve, reject) => {
+            // Algorithm depends on availability of OpenSSL on platform
+            // Another algorithms: 'sha1', 'md5', 'sha256', 'sha512' ...
+            let shasum = crypto.createHash(algorithm);
+            try {
+                let s = fs.createReadStream(filename);
+                s.on('data', function (data) {
+                    shasum.update(data)
+                })
+                // making digest
+                s.on('end', function () {
+                    const hash = shasum.digest('hex')
+                    return resolve(hash);
+                })
+            } catch (error) {
+                return reject(error);
+            }
+        });
+    }
 }
