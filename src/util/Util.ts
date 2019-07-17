@@ -46,14 +46,18 @@ export namespace Util {
                 let s = fs.createReadStream(filename);
                 s.on('data', function (data) {
                     shasum.update(data)
-                })
+                });
                 // making digest
                 s.on('end', function () {
                     const hash = shasum.digest('hex')
-                    return resolve(hash);
-                })
+                    resolve(hash);
+                });
+
+                s.on('error', (err) => { 
+                    reject(err);           
+                });
             } catch (error) {
-                return reject(error);
+                reject(error);
             }
         });
     }

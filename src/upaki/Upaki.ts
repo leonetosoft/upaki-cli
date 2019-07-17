@@ -166,6 +166,8 @@ export class Upaki {
      * @param meta 
      */
     async Upload(localPath: string | Buffer, cloudPath: string, meta = {}, lastModify = undefined): Promise<UploadEvents> {
+        var etag = await Util.Etagv2(localPath); // se passar por aqui eh consistente para enviar
+
         let size = !Buffer.isBuffer(localPath) ? Util.getFileSize(localPath) : localPath.byteLength;
         let bytesSend = !Buffer.isBuffer(localPath) ? this.ReadFile(localPath) : localPath;
         let credentials = await this.MakeUpload(size, cloudPath, meta, lastModify);
@@ -182,7 +184,10 @@ export class Upaki {
             Body: body,
             Bucket: credentials.bucket,
             Key: credentials.key,
-            ServerSideEncryption: 'AES256'
+            ServerSideEncryption: 'AES256',
+            Metadata: {
+                myMD5: etag
+            }
         };
 
         let emitter: UploadEvents = new UploadEvents();
@@ -228,8 +233,8 @@ export class Upaki {
      * @param config 
      */
      async MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }): Promise<S3StreamEvents> {
+        var etag = await Util.Etagv2(localPath); // etag vem primeiro porque pode ocorrer um erro na leitura das informacoes
         var read = fs.createReadStream(localPath);
-        var etag = await Util.Etagv2(localPath);
         //var compress = zlib.createGzip();
 
         let upStream = new S3Stream(new AWS.S3({
@@ -308,11 +313,11 @@ export class Upaki {
      * @param meta 
      */
     async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
+        var etag = await Util.Etagv2(localPath); // etag vem primeiro porque pode ocorrer um erro na leitura das informacoes
         let credentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta, lastModify);
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
-        var etag = await Util.Etagv2(localPath);
         /*let upStream = s3Stream(new AWS.S3({
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
