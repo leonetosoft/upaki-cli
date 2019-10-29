@@ -78,3 +78,26 @@ export interface UpakiUserProfile {
     view_share_workgroup: string;
     view_type: string;
 }
+
+export interface UpakiProxyConfig {
+    PROXY_SERVER: string;
+    PROXY_PORT: number;
+    PROXY_USER: string;
+    PROXY_PASS: string;
+    PROXY_PROTOCOL: 'http' | 'https';
+}
+
+export interface UpakiCertificate {
+    business_id: string;
+    certificate_signatures: UpakiSignatures[];
+    cn: string;
+    file_id: string;
+    id: string;
+    info: string;
+    password: string;
+}
+
+export interface UpakiSignatures {
+    autor: string;
+    id: string;
+}

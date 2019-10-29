@@ -25,9 +25,16 @@ export namespace Util {
         return prevname.replace(/^(.*[/\\])?/, '').replace(/(\.[^.]*)$/, '');
     }
 
-    export function getFileSize(path: string) {
-        const stats = fs.statSync(path);
-        return stats.size;
+    export function getFileSize(path: string): Promise<number> {
+        return new Promise((resolve, reject) => {
+            fs.stat(path, (err, stat) => {
+            if(err) {
+                reject(err);
+            } else {
+                resolve(stat.size)
+            }
+            });
+        });
     }
 
     export function Etag_DEPRECATED(buffer) {

@@ -358,7 +358,11 @@ export class S3Stream {
                         this.e.emit('part'); // Internal event
                     }
                 });
-                next();
+                try {
+                    next();
+                } catch (error) {
+                    this.externalEvent.emit('dbug', `Fail to write stream !!`);
+                }
             }
 
             if (this.paused)

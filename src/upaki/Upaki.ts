@@ -10,7 +10,8 @@ import * as zlib from 'zlib';
 import * as events from 'events';
 import { Environment } from '../config/env';
 import { development } from '../config/development';
-import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails } from './interfaceApi';
+import * as proxy from 'proxy-agent';
+import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails, UpakiProxyConfig, UpakiCertificate } from './interfaceApi';
 
 export interface UploadEvents {
     emit(event: 'error', error: string | Error | AWS.AWSError): boolean;
@@ -125,6 +126,19 @@ export class Upaki {
         return await RestRequest.POST_PUBLIC<DeviceAuthResponse>('public/authDevice', body);
     }
 
+    public async listAvailableSignatures() {
+        return await RestRequest.GET<UpakiCertificate[]>('cert/listAvailableSignatures', {});
+    }
+
+    public async signFile({ signatureId, fileId }: { signatureId: string, fileId: string }) {
+        let body = {
+            signatureId: signatureId,
+            fileId: fileId
+        };
+
+        return await RestRequest.POST<{}>('cert/signFile', body);
+    }
+
     private async CompleteUpload(file_id): Promise<any> {
         let body = {
             file_id: file_id
@@ -134,13 +148,18 @@ export class Upaki {
         return makePost.data;
     }
 
-    private ReadFile(path) {
-        let size = Util.getFileSize(path);
-        if (size <= 1048576) {
-            return fs.readFileSync(path);
-        } else {
-            return fs.createReadStream(path);
+    private async ReadFile(path){
+        let size = await Util.getFileSize(path);
+        try {
+            if (size <= 1048576) {
+                return fs.readFileSync(path);
+            } else {
+                return fs.createReadStream(path);
+            } 
+        } catch (error) {
+            throw error;
         }
+        
     }
 
     private ListFiles() {
@@ -158,6 +177,20 @@ export class Upaki {
 
     }
 
+    static UpdateProxyAgent(proxyConf: UpakiProxyConfig): string {
+        let conf = proxyConf.PROXY_PASS && proxyConf.PROXY_PASS !== '' ?
+            `${proxyConf.PROXY_PROTOCOL}://${proxyConf.PROXY_USER}:${proxyConf.PROXY_PASS}@${proxyConf.PROXY_SERVER}:${proxyConf.PROXY_PORT}` :
+            `${proxyConf.PROXY_PROTOCOL}://${proxyConf.PROXY_SERVER}:${proxyConf.PROXY_PORT}`;
+
+        AWS.config.update({
+            httpOptions: {
+                agent: proxy(conf) as any
+            }
+        });
+
+        return conf;
+    }
+
     /**
      * Envia um arquivo simples
      * 
@@ -168,9 +201,10 @@ export class Upaki {
     async Upload(localPath: string | Buffer, cloudPath: string, meta = {}, lastModify = undefined): Promise<UploadEvents> {
         var etag = await Util.Etagv2(localPath); // se passar por aqui eh consistente para enviar
 
-        let size = !Buffer.isBuffer(localPath) ? Util.getFileSize(localPath) : localPath.byteLength;
-        let bytesSend = !Buffer.isBuffer(localPath) ? this.ReadFile(localPath) : localPath;
+        let size = !Buffer.isBuffer(localPath) ? await Util.getFileSize(localPath) : localPath.byteLength;
+        let bytesSend = !Buffer.isBuffer(localPath) ? await this.ReadFile(localPath) : localPath;
         let credentials = await this.MakeUpload(size, cloudPath, meta, lastModify);
+
 
         let s3 = new AWS.S3({
             accessKeyId: credentials.credentials.AccessKeyId,
@@ -203,7 +237,7 @@ export class Upaki {
                 if (!Buffer.isBuffer(localPath) && !fs.existsSync(localPath)) {
                     emitter.emit('error', new Error('File removed !!!'));
                 }
-                else if ( Util.Etag_DEPRECATED(bytesSend) === data.ETag) {
+                else if (Util.Etag_DEPRECATED(bytesSend) === data.ETag) {
                     emitter.emit('error', new Error('Checksum error, arquivo corrompido no envio'));
                 } else {
                     this.CompleteUpload(credentials.file_id);
@@ -232,7 +266,7 @@ export class Upaki {
      * @param session 
      * @param config 
      */
-     async MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }): Promise<S3StreamEvents> {
+    async MultipartUploadManaged(credentials: MakeUpload, localPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number, uploadTimeout: number }): Promise<S3StreamEvents> {
         var etag = await Util.Etagv2(localPath); // etag vem primeiro porque pode ocorrer um erro na leitura das informacoes
         var read = fs.createReadStream(localPath);
         //var compress = zlib.createGzip();
@@ -242,7 +276,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
-            httpOptions: { timeout: 0 }
+            httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
         let upload = upStream.Upload({
@@ -280,11 +314,11 @@ export class Upaki {
             try {
                 //compress.unpipe(upStream.getStream());
                 //read.unpipe(compress);
-                upStream.getStream().destroy();
+                // REMOVIDO 20/09 upStream.getStream().destroy();
                 //compress.destroy();
-                read.destroy();
+                // REMOVIDO 20/09 read.destroy();
                 // read.close();
-                read = null;
+                // REMOVIDO 20/0 read = null;
             } catch (error) {
                 console.log(error);
             }
@@ -312,9 +346,9 @@ export class Upaki {
      * @param config 
      * @param meta 
      */
-    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
+    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number, uploadTimeout: number }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
         var etag = await Util.Etagv2(localPath); // etag vem primeiro porque pode ocorrer um erro na leitura das informacoes
-        let credentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta, lastModify);
+        let credentials = await this.MakeUpload(await Util.getFileSize(localPath), cloudPath, meta, lastModify);
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
@@ -337,7 +371,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
-            httpOptions: { timeout: 0 }
+            httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
         let opts: AWS.S3.Types.CreateMultipartUploadRequest;
@@ -382,7 +416,7 @@ export class Upaki {
         upload.on('error', async (err) => {
             try {
                 if (err.code === 'EXPIRED_TOKEN') {
-                    let newCredentials = await this.MakeUpload(Util.getFileSize(localPath), cloudPath, meta);
+                    let newCredentials = await this.MakeUpload(await Util.getFileSize(localPath), cloudPath, meta);
                     /*upStream.client = new AWS.S3({
                         accessKeyId: newCredentials.credentials.AccessKeyId,
                         secretAccessKey: newCredentials.credentials.SecretAccessKey,

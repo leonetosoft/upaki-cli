@@ -1,6 +1,6 @@
 {
   "name": "upaki-cli",
-  "version": "1.5.2",
+  "version": "1.5.9",
   "description": "Cliente Nodejs para comunicação com o Upaki",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -20,6 +20,7 @@
     "aws-sdk": "^2.213.1",
     "body-parser": "^1.18.2",
     "moment": "^2.20.1",
+    "proxy-agent": "^3.1.0",
     "reflect-metadata": "^0.1.12",
     "request": "^2.83.0",
     "shx": "^0.2.2"
