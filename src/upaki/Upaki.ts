@@ -272,6 +272,7 @@ export class Upaki {
         //var compress = zlib.createGzip();
 
         let upStream = new S3Stream(new AWS.S3({
+           /* region: credentials.region,*/
             correctClockSkew: true,
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
@@ -368,6 +369,7 @@ export class Upaki {
 
         let upStream = new S3Stream(new AWS.S3({
             correctClockSkew: true,
+           /* region: credentials.region,*/
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
