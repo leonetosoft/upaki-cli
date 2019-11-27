@@ -1,6 +1,6 @@
 {
   "name": "upaki-cli",
-  "version": "1.5.10",
+  "version": "1.5.13",
   "description": "Cliente Nodejs para comunicação com o Upaki",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -12,7 +12,7 @@
     "pretest": "npm run clean && tsc",
     "clean": "shx rm -rf _bundles lib lib-esm",
     "build": "npm run clean && tsc",
-    "lib2": "npm run clean && tsc && tsc -m es6 --outDir lib-esm",
+    "lib": "npm run clean && tsc && tsc -m es6 --outDir lib-esm",
     "build2": "npm run clean && tsc && tsc -m es6 --outDir lib-esm && webpack --watch --config webpack.config.js --progress --colors"
   },
   "dependencies": {

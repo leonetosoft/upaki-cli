@@ -42,6 +42,7 @@ export class UploadEvents extends events.EventEmitter implements UploadEvents {
 }
 
 export class Upaki {
+    static PROXY_CONFIG: string;
     constructor(credentials?: UpakiCredentials) {
         if (credentials) {
             Environment.config = development;
@@ -181,6 +182,10 @@ export class Upaki {
         let conf = proxyConf.PROXY_PASS && proxyConf.PROXY_PASS !== '' ?
             `${proxyConf.PROXY_PROTOCOL}://${proxyConf.PROXY_USER}:${proxyConf.PROXY_PASS}@${proxyConf.PROXY_SERVER}:${proxyConf.PROXY_PORT}` :
             `${proxyConf.PROXY_PROTOCOL}://${proxyConf.PROXY_SERVER}:${proxyConf.PROXY_PORT}`;
+
+        //const r = request.defaults({'proxy': conf})
+
+        Upaki.PROXY_CONFIG = conf;
 
         AWS.config.update({
             httpOptions: {

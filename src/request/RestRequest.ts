@@ -1,5 +1,6 @@
 import { Environment } from '../config/env';
 import * as request from 'request';
+import { Upaki } from '../upaki/Upaki';
 
 export namespace RestRequest {
 
@@ -16,7 +17,7 @@ export namespace RestRequest {
 
     export function requestAwaiter<T>(options): Promise<WSRespose<T>> {
         return new Promise((resolve, reject) => {
-            request(options, (error: any, response: request.Response, body: any) => {
+            request({ ...options, proxy: Upaki.PROXY_CONFIG }, (error: any, response: request.Response, body: any) => {
                 if (error || ((response && response.statusCode != 200) || !response)) {
                     if (response && response.statusCode === 403) {
                         reject(new Error(JSON.stringify(response.body)));
