@@ -18,6 +18,7 @@ export interface MakeUpload {
     key: string;
     bucket: string;
     region: string;
+    endpoint: string;
 }
 
 export interface GeSignedUrl {

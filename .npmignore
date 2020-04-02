@@ -4,3 +4,6 @@
 
 node_modules
 src
+apikey.json
+data-test
+lib-esm

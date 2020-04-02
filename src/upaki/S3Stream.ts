@@ -8,8 +8,8 @@ export interface S3StreamEvents {
     on(event: 'completeUpload', listener: (result: AWS.S3.CompleteMultipartUploadOutput) => void): this;
     emit(event: 'completeUpload', result: AWS.S3.CompleteMultipartUploadOutput): boolean;
 
-    emit(event: 'error', error: { code: string, err: Error }): boolean;
-    on(event: 'error', listener: (result: { code: string, err: Error }) => void): this;
+    emit(event: 'error', error: { code: string, err: Error, details?: { Etag: string, file_id: string, folder_id: string }}): boolean;
+    on(event: 'error', listener: (result: { code: string, err: Error, details?: { Etag: string, file_id: string, folder_id: string } }) => void): this;
 
     emit(event: 'ready', uploadId: string): boolean;
     on(event: 'ready', listener: (uploadId: string) => void): this;

@@ -1,6 +1,7 @@
 import { Environment } from '../config/env';
 import * as request from 'request';
 import { Upaki } from '../upaki/Upaki';
+import { CURRENT_API_VERSION } from '../version';
 
 export namespace RestRequest {
 
@@ -17,6 +18,7 @@ export namespace RestRequest {
 
     export function requestAwaiter<T>(options): Promise<WSRespose<T>> {
         return new Promise((resolve, reject) => {
+            options.url = `${options.url}${options.url.indexOf('?') === -1 ? `?apiVersion=${CURRENT_API_VERSION}`: `&apiVersion=${CURRENT_API_VERSION}`}`;
             request({ ...options, proxy: Upaki.PROXY_CONFIG }, (error: any, response: request.Response, body: any) => {
                 if (error || ((response && response.statusCode != 200) || !response)) {
                     if (response && response.statusCode === 403) {

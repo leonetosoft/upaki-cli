@@ -4,3 +4,5 @@ package-lock.json
 lib
 lib-esm
 _bundles
+apikey.json
+data-test

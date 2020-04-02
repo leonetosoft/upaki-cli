@@ -14,8 +14,8 @@ import * as proxy from 'proxy-agent';
 import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails, UpakiProxyConfig, UpakiCertificate } from './interfaceApi';
 
 export interface UploadEvents {
-    emit(event: 'error', error: string | Error | AWS.AWSError): boolean;
-    on(event: 'error', listener: (result: string | Error | AWS.AWSError) => void): this;
+    emit(event: 'error', error: string | Error | AWS.AWSError | {code: string, err: any, details: {Etag: string, file_id: string, folder_id: string}}): boolean;
+    on(event: 'error', listener: (result: string | Error | AWS.AWSError | {code: string, err: any, details: {Etag: string, file_id: string, folder_id: string}}) => void): this;
 
     on(event: "httpUploadProgress", listener: (progress: {
         loaded: number;
@@ -140,7 +140,7 @@ export class Upaki {
         return await RestRequest.POST<{}>('cert/signFile', body);
     }
 
-    private async CompleteUpload(file_id): Promise<any> {
+    async CompleteUpload(file_id): Promise<any> {
         let body = {
             file_id: file_id
         };
@@ -215,6 +215,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
             httpOptions: { timeout: 0 }
         });
 
@@ -235,18 +236,25 @@ export class Upaki {
 
         putRequest.on('httpUploadProgress', (evt) => {
             emitter.emit('progress', evt)
-        }).send((err, data) => {
+        }).send(async (err, data) => {
             if (err) {
                 emitter.emit('error', err);
             } else {
                 if (!Buffer.isBuffer(localPath) && !fs.existsSync(localPath)) {
                     emitter.emit('error', new Error('File removed !!!'));
                 }
-                else if (Util.Etag_DEPRECATED(bytesSend) === data.ETag) {
+                else if (etag === data.ETag) {
                     emitter.emit('error', new Error('Checksum error, arquivo corrompido no envio'));
                 } else {
-                    this.CompleteUpload(credentials.file_id);
-                    emitter.emit('uploaded', { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
+                    // this.CompleteUpload(credentials.file_id);
+                    // emitter.emit('uploaded', { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
+                
+                    try {
+                        await this.CompleteUpload(credentials.file_id);
+                        emitter.emit('uploaded', { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
+                    } catch (errorComplete) {
+                        emitter.emit('error', { code: 'COMPLETE_UPLOAD_ERROR', err: errorComplete, details:  { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id }});
+                    }
                 }
             }
         });
@@ -282,6 +290,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
             httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
@@ -378,6 +387,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
+            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
             httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
@@ -411,12 +421,12 @@ export class Upaki {
         upStream.setMaxPartSize(config.maxPartSize); // 20 MB
         upStream.setConcurrentParts(config.concurrentParts);
 
-        upload.on('completeUpload', (details) => {
+        upload.on('completeUpload', async (details) => {
             try {
-                this.CompleteUpload(credentials.file_id);
+                await this.CompleteUpload(credentials.file_id);
                 upload.emit('uploaded', { Etag: details.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
             } catch (error) {
-
+                upload.emit('error', { code: 'COMPLETE_UPLOAD_ERROR', err: error, details: { Etag: details.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id } });
             }
         });
 
@@ -447,13 +457,13 @@ export class Upaki {
 
         upload.on('aborted', () => {
             try {
-                compress.unpipe(upStream.getStream());
-                read.unpipe(compress);
-                upStream.getStream().destroy();
-                compress.destroy();
-                read.destroy();
+                //compress.unpipe(upStream.getStream());
+                //read.unpipe(compress);
+                //upStream.getStream().destroy();
+                //compress.destroy();
+                //read.destroy();
                 // read.close();
-                read = null;
+                //read = null;
             } catch (error) {
                 console.log(error);
             }
