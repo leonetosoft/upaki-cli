@@ -102,3 +102,23 @@ export interface UpakiSignatures {
     autor: string;
     id: string;
 }
+
+export interface DocumentStatisticsBody {
+    dia?: string|number;
+    mes?: string|number;
+    ano?: string|number;
+    useDeviceId: boolean;
+}
+
+export interface DocumentStatisticResponse {
+    dia: {
+        dia: number;
+        total: number;
+        totalDocs: number;
+    },
+    mes: {
+        dia: number;
+        total: number;
+        totalDocs: number;
+    }
+}

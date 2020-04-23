@@ -11,11 +11,11 @@ import * as events from 'events';
 import { Environment } from '../config/env';
 import { development } from '../config/development';
 import * as proxy from 'proxy-agent';
-import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails, UpakiProxyConfig, UpakiCertificate } from './interfaceApi';
+import { UpakiObject, UpakiUploadProgress, GeSignedUrl, MakeUpload, UpakiArchiveList, UpakiPathInfo, UpakiUserProfile, UPAKI_DEVICE_TYPE, DeviceAuthResponse, S3StreamSessionDetails, UpakiProxyConfig, UpakiCertificate, DocumentStatisticsBody, DocumentStatisticResponse } from './interfaceApi';
 
 export interface UploadEvents {
-    emit(event: 'error', error: string | Error | AWS.AWSError | {code: string, err: any, details: {Etag: string, file_id: string, folder_id: string}}): boolean;
-    on(event: 'error', listener: (result: string | Error | AWS.AWSError | {code: string, err: any, details: {Etag: string, file_id: string, folder_id: string}}) => void): this;
+    emit(event: 'error', error: string | Error | AWS.AWSError | { code: string, err: any, details: { Etag: string, file_id: string, folder_id: string } }): boolean;
+    on(event: 'error', listener: (result: string | Error | AWS.AWSError | { code: string, err: any, details: { Etag: string, file_id: string, folder_id: string } }) => void): this;
 
     on(event: "httpUploadProgress", listener: (progress: {
         loaded: number;
@@ -89,6 +89,17 @@ export class Upaki {
         return makePost;
     }
 
+    public async getDocumentStatistics({ dia, mes, ano, useDeviceId }: DocumentStatisticsBody): Promise<RestRequest.WSRespose<DocumentStatisticResponse>> {
+        let body = {
+            dia,
+            mes,
+            ano,
+            useDeviceId
+        };
+
+        return await RestRequest.POST<DocumentStatisticResponse>('user/getDocumentStatistics', body);
+    }
+
     public async getFiles(folderId: string, next?: string) {
         let body = {
             folder_id: folderId,
@@ -149,18 +160,18 @@ export class Upaki {
         return makePost.data;
     }
 
-    private async ReadFile(path){
+    private async ReadFile(path) {
         let size = await Util.getFileSize(path);
         try {
             if (size <= 1048576) {
                 return fs.readFileSync(path);
             } else {
                 return fs.createReadStream(path);
-            } 
+            }
         } catch (error) {
             throw error;
         }
-        
+
     }
 
     private ListFiles() {
@@ -215,7 +226,7 @@ export class Upaki {
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
-            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
+            ...(credentials.endpoint ? { endpoint: `https://s3.${credentials.endpoint}` } : {}),
             httpOptions: { timeout: 0 }
         });
 
@@ -248,12 +259,12 @@ export class Upaki {
                 } else {
                     // this.CompleteUpload(credentials.file_id);
                     // emitter.emit('uploaded', { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
-                
+
                     try {
                         await this.CompleteUpload(credentials.file_id);
                         emitter.emit('uploaded', { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id });
                     } catch (errorComplete) {
-                        emitter.emit('error', { code: 'COMPLETE_UPLOAD_ERROR', err: errorComplete, details:  { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id }});
+                        emitter.emit('error', { code: 'COMPLETE_UPLOAD_ERROR', err: errorComplete, details: { Etag: data.ETag.replace(/"/g, ''), file_id: credentials.file_id, folder_id: credentials.folder_id } });
                     }
                 }
             }
@@ -285,12 +296,12 @@ export class Upaki {
         //var compress = zlib.createGzip();
 
         let upStream = new S3Stream(new AWS.S3({
-           /* region: credentials.region,*/
+            /* region: credentials.region,*/
             correctClockSkew: true,
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
-            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
+            ...(credentials.endpoint ? { endpoint: `https://s3.${credentials.endpoint}` } : {}),
             httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
@@ -383,11 +394,11 @@ export class Upaki {
 
         let upStream = new S3Stream(new AWS.S3({
             correctClockSkew: true,
-           /* region: credentials.region,*/
+            /* region: credentials.region,*/
             accessKeyId: credentials.credentials.AccessKeyId,
             secretAccessKey: credentials.credentials.SecretAccessKey,
             sessionToken: credentials.credentials.SessionToken,
-            ...(credentials.endpoint ? {endpoint: `https://s3.${credentials.endpoint}`} : {}),
+            ...(credentials.endpoint ? { endpoint: `https://s3.${credentials.endpoint}` } : {}),
             httpOptions: { timeout: config.uploadTimeout ? config.uploadTimeout : 0 }
         }), session);
 
