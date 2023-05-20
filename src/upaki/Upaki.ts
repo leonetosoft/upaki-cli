@@ -60,7 +60,7 @@ export class Upaki {
         return makePost.data;
     }
 
-    private async MakeUpload(size: number, cloudPath: string, meta = {}, lastModify = undefined): Promise<MakeUpload> {
+    private async MakeUpload(size: number, cloudPath: string, meta = {}, lastModify = undefined, preferred_dest_folder_id?: string): Promise<MakeUpload> {
         /*if (!fs.existsSync(localPath)) {
             throw new Error('Arquivo não encontrado');
         }*/
@@ -69,6 +69,7 @@ export class Upaki {
             path: cloudPath,
             meta: meta,
             lastModify: lastModify,
+            preferred_dest_folder_id,
             size: /*Util.getFileSize(localPath)*/ size
         }
 
@@ -214,12 +215,12 @@ export class Upaki {
      * @param cloudPath 
      * @param meta 
      */
-    async Upload(localPath: string | Buffer, cloudPath: string, meta = {}, lastModify = undefined): Promise<UploadEvents> {
+    async Upload(localPath: string | Buffer, cloudPath: string, meta = {}, lastModify = undefined, preferred_dest_folder_id?: string): Promise<UploadEvents> {
         var etag = await Util.Etagv2(localPath); // se passar por aqui eh consistente para enviar
 
         let size = !Buffer.isBuffer(localPath) ? await Util.getFileSize(localPath) : localPath.byteLength;
         let bytesSend = !Buffer.isBuffer(localPath) ? await this.ReadFile(localPath) : localPath;
-        let credentials = await this.MakeUpload(size, cloudPath, meta, lastModify);
+        let credentials = await this.MakeUpload(size, cloudPath, meta, lastModify, preferred_dest_folder_id);
 
 
         let s3 = new AWS.S3({
@@ -372,9 +373,9 @@ export class Upaki {
      * @param config 
      * @param meta 
      */
-    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number, uploadTimeout: number }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
+    async MultipartUpload(localPath: string, cloudPath: string, session: S3StreamSessionDetails, config: { maxPartSize: number; concurrentParts: number, uploadTimeout: number, preferred_dest_folder_id?: string }, meta = {}, lastModify = undefined, compressContent = true): Promise<S3StreamEvents> {
         var etag = await Util.Etagv2(localPath); // etag vem primeiro porque pode ocorrer um erro na leitura das informacoes
-        let credentials = await this.MakeUpload(await Util.getFileSize(localPath), cloudPath, meta, lastModify);
+        let credentials = await this.MakeUpload(await Util.getFileSize(localPath), cloudPath, meta, lastModify, config.preferred_dest_folder_id);
 
         var read = fs.createReadStream(localPath);
         var compress = zlib.createGzip();
